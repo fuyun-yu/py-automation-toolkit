@@ -286,8 +286,8 @@ class Engine:
 
     def __del__(self):
         if self.logClose:
-            self.log.close()
             self.logging('engine关闭由自己占有的log句柄')
+            self.log.close()
 
     @staticmethod
     def prtSc():
