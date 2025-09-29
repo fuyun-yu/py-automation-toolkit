@@ -120,14 +120,14 @@ class ConfigParser:
         self.configLineIndex += 1
 
     def getTargetStr(self):
-        return self.curLine.split(':')
+        return self.curLine.split(':', maxsplit=1)
 
     @staticmethod
     def splitAndStrip(target):
         return [i.strip() for i in target.split(',')]
 
     def processAddress(self):
-        target = ['target']
+        target = self.getTargetStr()
         while target[0] != 'address' and target[0] != '':
             self.nextLine()
             target = self.getTargetStr()
@@ -137,7 +137,7 @@ class ConfigParser:
         return target[1].strip()
 
     def processDo(self):
-        target = ['target']
+        target = self.getTargetStr()
         while target[0] != 'do' and target[0] != '':
             self.nextLine()
             target = self.getTargetStr()
@@ -173,7 +173,7 @@ class ConfigParser:
         return arr
 
     def processElse(self):
-        target = ['target']
+        target = self.getTargetStr()
         while target[0] != 'else' and target[0] != '':
             self.nextLine()
             target = self.getTargetStr()
@@ -210,7 +210,7 @@ class ConfigParser:
         return arr
 
     def processIndex(self):
-        target = ['target']
+        target = self.getTargetStr()
         while target[0] != 'index' and target[0] != '':
             self.nextLine()
             target = self.getTargetStr()
@@ -226,7 +226,7 @@ class ConfigParser:
                 self.engine.logging(f'config在第{self.configLineIndex}行存在错误,index后期待all或者数字')
 
     def processJump(self):
-        target = ['target']
+        target = self.getTargetStr()
         while target[0] != 'jump' and target[0] != '':
             self.nextLine()
             target = self.getTargetStr()
@@ -236,7 +236,7 @@ class ConfigParser:
         return target[1]  # 这里返回的是字符串类型的Label
 
     def processBaseBlock(self, res):
-        target = ['target']
+        target = self.getTargetStr()
         while target[0] != 'label' and target[0] != '':
             self.nextLine()
             target = self.getTargetStr()
@@ -260,7 +260,9 @@ class ConfigParser:
         while 'begin' != self.curLine.strip():
             self.nextLine()
         while 'end' != self.curLine.strip() and '' != self.curLine:
-            self.processBaseBlock(res)
+            self.nextLine()
+            if 'end' != self.curLine.strip() and '' != self.curLine:
+                self.processBaseBlock(res)
         if '' == self.curLine:
             self.engine.logging('warning:未使用end对config进行包裹,可能存在潜在错误')
         return self.mapLabel, res
