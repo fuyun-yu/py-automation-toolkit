@@ -122,6 +122,10 @@ class ConfigParser:
     def getTargetStr(self):
         return self.curLine.split(':')
 
+    @staticmethod
+    def splitAndStrip(target):
+        return [i.strip() for i in target.split(',')]
+
     def processAddress(self):
         target = ['target']
         while target[0] != 'address' and target[0] != '':
@@ -130,7 +134,7 @@ class ConfigParser:
         if target[0] == '':
             self.engine.logging(f'config在第{self.configLineIndex}行存在错误,不完整的块定义')
             exit(1)
-        return target[1]
+        return target[1].strip()
 
     def processDo(self):
         target = ['target']
@@ -140,7 +144,7 @@ class ConfigParser:
         if target[0] == '':
             self.engine.logging(f'config在第{self.configLineIndex}行存在错误,不完整的块定义')
             exit(2)
-        doList = target[1].split(',')
+        doList = self.splitAndStrip(target[1])
         arr = list()
         if doList[0] == 'click':
             if len(doList) != 3:
@@ -176,7 +180,7 @@ class ConfigParser:
         if target[0] == '':
             self.engine.logging(f'config在第{self.configLineIndex}行存在错误,不完整的块定义')
             exit(6)
-        doList = target[1].split(',')
+        doList = self.splitAndStrip(target[1])
         arr = list()
         if doList[0] == 'click':
             if len(doList) != 3:
@@ -201,6 +205,7 @@ class ConfigParser:
             arr = [self.mapAction[doList[0]]]
         else:
             self.engine.logging(f'未知指令: {doList[0]}')
+            print(doList)
             exit(10)
         return arr
 
@@ -213,10 +218,10 @@ class ConfigParser:
             self.engine.logging(f'config在第{self.configLineIndex}行存在错误,不完整的块定义')
             exit(11)
         if target[1] == 'all':
-            return self.mapAction['all']
+            return self.mapAction['all']  # 如果是all,返回Action映射,
         else:
             try:
-                return int(target[1])  # 如果是all,返回Action映射,否则返回数字
+                return int(target[1])  # 否则返回数字
             except (ValueError, TypeError, OverflowError):
                 self.engine.logging(f'config在第{self.configLineIndex}行存在错误,index后期待all或者数字')
 
@@ -270,7 +275,7 @@ class Engine:
             self.log = log
             self.logClose = False
         else:
-            self.log = open(log, 'w', encoding='utf-8')
+            self.log = open(log, 'a', encoding='utf-8')
             self.logClose = True
         self.isRun = True
         self.logging(f'log由{"engine" if self.logClose else "外部"}开启')
