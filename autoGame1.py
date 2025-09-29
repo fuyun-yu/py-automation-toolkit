@@ -159,6 +159,13 @@ class ConfigParser:
                 self.engine.logging(f'config在第{self.configLineIndex}行出现非法参数,jump行期待两个参数')
                 exit(-1)
             arr = [self.mapAction['jump'], doList[-1]]
+        elif doList[0] == 'notDo':
+            if len(doList) != 1:
+                self.engine.logging(f'warning:config在第{self.configLineIndex}行出现非法参数,notDo后不应有参数')
+            arr = self.mapAction[doList[0]]
+        else:
+            self.engine.logging(f'未知指令: {doList[0]}')
+            exit(-1)
         return arr
 
     def processElse(self):
@@ -188,6 +195,13 @@ class ConfigParser:
                 self.engine.logging(f'config在第{self.configLineIndex}行出现非法参数,jump行期待两个参数')
                 exit(-1)
             arr = [self.mapAction['jump'], doList[-1]]
+        elif doList[0] == 'notDo':
+            if len(doList) != 1:
+                self.engine.logging(f'warning:config在第{self.configLineIndex}行出现非法参数,notDo后不应有参数')
+            arr = self.mapAction[doList[0]]
+        else:
+            self.engine.logging(f'未知指令: {doList[0]}')
+            exit(-1)
         return arr
 
     def processIndex(self):
@@ -228,7 +242,6 @@ class ConfigParser:
             self.mapLabel[target[1]] = len(res)
         else:
             self.engine.logging('重复的Label标签,Label标签不可重复')
-            self.engine.log.flush()
             exit(-1)
         address = self.processAddress()
         do = self.processDo()
