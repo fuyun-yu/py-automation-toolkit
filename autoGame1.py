@@ -27,7 +27,7 @@ index采用0-based系统
 定义可以执行的内容
 通过列表存储，第一个元素是执行的动作的类型，随后是具体的动作
 鼠标示例：[click,left,2]左键双击两次
-键盘示例: [host,ctrl,shift,p]使用组合键ctrl+shift+p
+键盘示例: [keyHot,ctrl,shift,p]使用组合键ctrl+shift+p
 """
 """
 定义config格式
@@ -36,7 +36,7 @@ index采用0-based系统
 label: [name]
 address: [url]
 do: [click,left,1]
-else: [to otherLabel]
+else: [jump otherLabel]
 index: [all]
 jump: [otherLabel]
 解析时依靠冒号前的字母(标识符)进行解析
@@ -46,6 +46,7 @@ jump: [otherLabel]
 使用begin  和  end 单词对 定义config的范围，begin 和 end 应该独占一行
 对于不使用标识符开头的行将不会进行解析,所以可以直接写注释
 如果config不以end结尾，会在log中进行记录，但不会直接报错
+定义当成功执行后必然会跳转,失败则只执行if not exists do 
 """
 """
 暂不支持热重载
@@ -62,7 +63,7 @@ RNG_FLOAT_HIGH = 5
 class Action(Enum):
     # 基本类型
     click = auto()
-    keyHost = auto()
+    keyHot = auto()
     notDo = auto()
     # 鼠标类型
     left = auto()
@@ -101,7 +102,7 @@ class ConfigParser:
             self.engine.logging('配置文件由解析器外部开启,解析器不负责关闭资源')
         self.mapAction = {
             'click': Action.click,
-            'keyHost': Action.keyHost,
+            'keyHot': Action.keyHot,
             'notDo': Action.notDo,
             'left': Action.left,
             'right': Action.right,
@@ -156,13 +157,13 @@ class ConfigParser:
             except (ValueError, TypeError, OverflowError):
                 self.engine.logging(f'config在第{self.configLineIndex}行出现非法参数,{doList[-2]}后期待int')
                 exit(3)
-        elif doList[0] == 'keyHost':
+        elif doList[0] == 'keyHot':
             arr = [self.mapAction[doList[0]]] + doList[1:]
         elif doList[0] == 'jump':
             if len(doList) != 2:
                 self.engine.logging(f'config在第{self.configLineIndex}行出现非法参数,jump行期待两个参数')
                 exit(4)
-            arr = [self.mapAction['jump'], doList[-1]]
+            arr = [self.mapAction['jump'], doList[-1].strip()]
         elif doList[0] == 'notDo':
             if len(doList) != 1:
                 self.engine.logging(f'warning:config在第{self.configLineIndex}行出现非法参数,notDo后不应有参数')
@@ -192,13 +193,13 @@ class ConfigParser:
             except (ValueError, TypeError, OverflowError):
                 self.engine.logging(f'config在第{self.configLineIndex}行出现非法参数,click后期待int')
                 exit(8)
-        elif doList[0] == 'keyHost':
+        elif doList[0] == 'keyHot':
             arr = [self.mapAction[doList[0]]] + doList[1:]
         elif doList[0] == 'jump':
             if len(doList) != 2:
                 self.engine.logging(f'config在第{self.configLineIndex}行出现非法参数,jump行期待两个参数')
                 exit(9)
-            arr = [self.mapAction['jump'], doList[-1]]
+            arr = [self.mapAction['jump'], doList[-1].strip()]
         elif doList[0] == 'notDo':
             if len(doList) != 1:
                 self.engine.logging(f'warning:config在第{self.configLineIndex}行出现非法参数,notDo后不应有参数')
@@ -233,7 +234,7 @@ class ConfigParser:
         if target[0] == '':
             self.engine.logging(f'config在第{self.configLineIndex}行存在错误,不完整的块定义')
             exit(12)
-        return target[1]  # 这里返回的是字符串类型的Label
+        return target[1].strip()  # 这里返回的是字符串类型的Label
 
     def processBaseBlock(self, res):
         target = self.getTargetStr()
@@ -243,8 +244,9 @@ class ConfigParser:
         if target[0] == '':
             self.engine.logging(f'config在第{self.configLineIndex}行存在错误,不完整的块定义')
             exit(13)
-        if target[1] not in self.mapLabel:
-            self.mapLabel[target[1]] = len(res)
+        pushStr = target[1].strip()
+        if pushStr not in self.mapLabel:
+            self.mapLabel[pushStr] = len(res)
         else:
             self.engine.logging('重复的Label标签,Label标签不可重复')
             exit(14)
@@ -329,9 +331,11 @@ class Engine:
                 button = 'left' if task[1] == Action.left else 'right'
                 clicks = task[2]
                 gui.click(button=button, clicks=clicks)
-            elif task[0] == Action.keyHost:
+            elif task[0] == Action.keyHot:
                 gui.hotkey(*(task[1:]))
             elif task[0] == Action.notDo:
+                pass
+            elif task[0] == Action.jump:
                 pass
             else:
                 self.logging('未知指令')
@@ -341,7 +345,7 @@ class Engine:
             if task[0] == Action.jump:
                 return task[-1]
             elif task[0] == Action.notDo:
-                pass
+                return None
 
     def getBaseBlocks(self, config):
         parser = ConfigParser(config, self)
@@ -379,12 +383,11 @@ class Engine:
             f.close()
             self.logging('引擎关闭config文件句柄,释放资源')
         self.preImgRead()
-        blockLabel = self.workFlow[0].nextJump
+        blockLabel = next(iter(self.mapLabel))
         rng = np.random.default_rng()
         while blockLabel != 'over' and self.isRun:
             if blockLabel not in self.mapLabel:
                 self.logging(f'未注册的Label {blockLabel} ')
-                self.log.flush()
                 exit(17)
             num = self.mapLabel[blockLabel]
             picture = self.prtSc()
@@ -396,15 +399,21 @@ class Engine:
                 if len(imgs) != 0:
                     if curBlock.index == Action.all:
                         for (val, x, y) in imgs:
-                            blockLabel = self.worker(curBlock, x, y, rng, True)
+                            tempReturn = self.worker(curBlock, x, y, rng, True)
+                            self.logging(f'执行任务,当前图片{blockLabel}')
+                        blockLabel = blockLabel if tempReturn is None else tempReturn
                     else:
-                        for _, (val, x, y) in enumerate(imgs):
-                            if _ == curBlock.index:
-                                blockLabel = self.worker(curBlock, x, y, rng, True)
+                        for idx, (val, x, y) in enumerate(imgs):
+                            if idx == curBlock.index:
+                                tempReturn = self.worker(curBlock, x, y, rng, True)
+                                self.logging(f'执行任务,当前图片{blockLabel}')
+                                blockLabel = blockLabel if (tempReturn is None) else tempReturn
                                 break
                     get = True
                 else:  # 执行if not exists do
-                    blockLabel = self.worker(curBlock, 0, 0, rng, False)
+                    tempReturn = self.worker(curBlock, 0, 0, rng, False)
+                    self.logging(f'未找到图片,执行notExist,当前图片{blockLabel}')
+                    blockLabel = blockLabel if tempReturn is None else tempReturn
                 time.sleep(rng.uniform(RNG_FLOAT_LOW, RNG_FLOAT_HIGH))
         write = '正常关闭' if self.isRun else '紧急关闭'
         self.logging(write)
