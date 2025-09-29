@@ -367,6 +367,7 @@ class Engine:
         self.isRun = False
 
     def run(self, config):
+        tempReturn = ''
         self.logging('启动成功')
         kb.add_hotkey('ctrl+shift+alt', self.stopRun)
         self.logging('全局紧急停止热键 ctrl+shift+alt 已成功注册')
