@@ -129,7 +129,7 @@ class ConfigParser:
             target = self.getTargetStr()
         if target[0] == '':
             self.engine.logging(f'config在第{self.configLineIndex}行存在错误,不完整的块定义')
-            exit(-1)
+            exit(1)
         return target[1]
 
     def processDo(self):
@@ -139,7 +139,7 @@ class ConfigParser:
             target = self.getTargetStr()
         if target[0] == '':
             self.engine.logging(f'config在第{self.configLineIndex}行存在错误,不完整的块定义')
-            exit(-1)
+            exit(2)
         doList = target[1].split(',')
         arr = list()
         if doList[0] == 'click':
@@ -151,13 +151,13 @@ class ConfigParser:
                 arr.append(int(doList[-1]))
             except (ValueError, TypeError, OverflowError):
                 self.engine.logging(f'config在第{self.configLineIndex}行出现非法参数,{doList[-2]}后期待int')
-                exit(-1)
+                exit(3)
         elif doList[0] == 'keyHost':
             arr = [self.mapAction[doList[0]]] + doList[1:]
         elif doList[0] == 'jump':
             if len(doList) != 2:
                 self.engine.logging(f'config在第{self.configLineIndex}行出现非法参数,jump行期待两个参数')
-                exit(-1)
+                exit(4)
             arr = [self.mapAction['jump'], doList[-1]]
         elif doList[0] == 'notDo':
             if len(doList) != 1:
@@ -165,7 +165,7 @@ class ConfigParser:
             arr = self.mapAction[doList[0]]
         else:
             self.engine.logging(f'未知指令: {doList[0]}')
-            exit(-1)
+            exit(5)
         return arr
 
     def processElse(self):
@@ -175,25 +175,25 @@ class ConfigParser:
             target = self.getTargetStr()
         if target[0] == '':
             self.engine.logging(f'config在第{self.configLineIndex}行存在错误,不完整的块定义')
-            exit(-1)
+            exit(6)
         doList = target[1].split(',')
         arr = list()
         if doList[0] == 'click':
             if len(doList) != 3:
                 self.engine.logging(f'config在第{self.configLineIndex}行出现非法参数,click行期待三个参数')
-                exit(-1)
+                exit(7)
             arr = [self.mapAction[i] for i in doList[:-1]]
             try:
                 arr.append(int(doList[-1]))
             except (ValueError, TypeError, OverflowError):
                 self.engine.logging(f'config在第{self.configLineIndex}行出现非法参数,click后期待int')
-                exit(-1)
+                exit(8)
         elif doList[0] == 'keyHost':
             arr = [self.mapAction[doList[0]]] + doList[1:]
         elif doList[0] == 'jump':
             if len(doList) != 2:
                 self.engine.logging(f'config在第{self.configLineIndex}行出现非法参数,jump行期待两个参数')
-                exit(-1)
+                exit(9)
             arr = [self.mapAction['jump'], doList[-1]]
         elif doList[0] == 'notDo':
             if len(doList) != 1:
@@ -201,7 +201,7 @@ class ConfigParser:
             arr = self.mapAction[doList[0]]
         else:
             self.engine.logging(f'未知指令: {doList[0]}')
-            exit(-1)
+            exit(10)
         return arr
 
     def processIndex(self):
@@ -211,7 +211,7 @@ class ConfigParser:
             target = self.getTargetStr()
         if target[0] == '':
             self.engine.logging(f'config在第{self.configLineIndex}行存在错误,不完整的块定义')
-            exit(-1)
+            exit(11)
         if target[1] == 'all':
             return self.mapAction['all']
         else:
@@ -227,7 +227,7 @@ class ConfigParser:
             target = self.getTargetStr()
         if target[0] == '':
             self.engine.logging(f'config在第{self.configLineIndex}行存在错误,不完整的块定义')
-            exit(-1)
+            exit(12)
         return target[1]  # 这里返回的是字符串类型的Label
 
     def processBaseBlock(self, res):
@@ -237,12 +237,12 @@ class ConfigParser:
             target = self.getTargetStr()
         if target[0] == '':
             self.engine.logging(f'config在第{self.configLineIndex}行存在错误,不完整的块定义')
-            exit(-1)
+            exit(13)
         if target[1] not in self.mapLabel:
             self.mapLabel[target[1]] = len(res)
         else:
             self.engine.logging('重复的Label标签,Label标签不可重复')
-            exit(-1)
+            exit(14)
         address = self.processAddress()
         do = self.processDo()
         notDo = self.processElse()
@@ -326,7 +326,7 @@ class Engine:
                 gui.hotkey(*(task[1:]))
             else:
                 self.logging('未知指令')
-                exit(-1)
+                exit(15)
             return curBlock.nextJump
         else:
             if task[0] == Action.jump:
@@ -338,13 +338,14 @@ class Engine:
 
     def logging(self, write):
         self.log.write(self.formatTime() + write + '\n')
+        self.log.flush()
 
     def preImgRead(self):
         for i in self.workFlow:
             temp = c.imread(i.address)
             if temp is None:
                 self.logging(f'{i.address}所指向的资源未找到')
-                exit(-1)
+                exit(16)
             i.address = c.cvtColor(temp, c.COLOR_BGR2GRAY)
 
     def stopRun(self):
@@ -373,7 +374,7 @@ class Engine:
             if blockLabel not in self.mapLabel:
                 self.logging(f'未注册的Label {blockLabel} ')
                 self.log.flush()
-                exit(-1)
+                exit(17)
             num = self.mapLabel[blockLabel]
             picture = self.prtSc()
             curBlock = self.workFlow[num]
