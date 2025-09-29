@@ -385,7 +385,9 @@ class Engine:
             self.logging('引擎关闭config文件句柄,释放资源')
         self.preImgRead()
         blockLabel = next(iter(self.mapLabel))
-        rng = np.random.default_rng()
+        seed = time.time()
+        rng = np.random.default_rng(int(seed))
+        self.logging(f'随机数种子 {int(seed)}')
         while blockLabel != 'over' and self.isRun:
             if blockLabel not in self.mapLabel:
                 self.logging(f'未注册的Label {blockLabel} ')
