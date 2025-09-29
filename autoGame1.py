@@ -81,7 +81,7 @@ class BaseBlock:
         self.address = address
         self.exist = exist
         self.notExist = notExist
-        self.index = index  # index是后加的，engine中的相关逻辑还没来得及改，等待修改中
+        self.index = index
         self.nextJump = nextJump
 
 
@@ -101,7 +101,7 @@ class ConfigParser:
             self.engine.logging('配置文件由解析器外部开启,解析器不负责关闭资源')
         self.mapAction = {
             'click': Action.click,
-            'host': Action.keyHost,
+            'keyHost': Action.keyHost,
             'notDo': Action.notDo,
             'left': Action.left,
             'right': Action.right,
@@ -154,6 +154,11 @@ class ConfigParser:
                 exit(-1)
         elif doList[0] == 'keyHost':
             arr = [self.mapAction[doList[0]]] + doList[1:]
+        elif doList[0] == 'jump':
+            if len(doList) != 2:
+                self.engine.logging(f'config在第{self.configLineIndex}行出现非法参数,jump行期待两个参数')
+                exit(-1)
+            arr = [self.mapAction['jump'], doList[-1]]
         return arr
 
     def processElse(self):
@@ -179,12 +184,10 @@ class ConfigParser:
         elif doList[0] == 'keyHost':
             arr = [self.mapAction[doList[0]]] + doList[1:]
         elif doList[0] == 'jump':
-            arr = [self.mapAction['jump']]
-            try:
-                arr.append(int(doList[-1]))
-            except (ValueError, TypeError, OverflowError):
-                self.engine.logging(f'config在第{self.configLineIndex}行出现非法参数,jump后期待int')
+            if len(doList) != 2:
+                self.engine.logging(f'config在第{self.configLineIndex}行出现非法参数,jump行期待两个参数')
                 exit(-1)
+            arr = [self.mapAction['jump'], doList[-1]]
         return arr
 
     def processIndex(self):
@@ -199,10 +202,9 @@ class ConfigParser:
             return self.mapAction['all']
         else:
             try:
-                return int(target[1])
+                return int(target[1])  # 如果是all,返回Action映射,否则返回数字
             except (ValueError, TypeError, OverflowError):
-                self.engine.logging(f'非法index参数在第{self.configLineIndex}行,index后期待int或all')
-                exit(-1)
+                self.engine.logging(f'config在第{self.configLineIndex}行存在错误,index后期待all或者数字')
 
     def processJump(self):
         target = ['target']
@@ -212,7 +214,7 @@ class ConfigParser:
         if target[0] == '':
             self.engine.logging(f'config在第{self.configLineIndex}行存在错误,不完整的块定义')
             exit(-1)
-        return target[1]
+        return target[1]  # 这里返回的是字符串类型的Label
 
     def processBaseBlock(self, res):
         target = ['target']
@@ -224,6 +226,10 @@ class ConfigParser:
             exit(-1)
         if target[1] not in self.mapLabel:
             self.mapLabel[target[1]] = len(res)
+        else:
+            self.engine.logging('重复的Label标签,Label标签不可重复')
+            self.engine.log.flush()
+            exit(-1)
         address = self.processAddress()
         do = self.processDo()
         notDo = self.processElse()
@@ -233,21 +239,20 @@ class ConfigParser:
 
     def parser(self):
         res = list()
-        while 'begin' != self.curLine:
+        while 'begin' != self.curLine.strip():
             self.nextLine()
-        while 'end' != self.curLine and '' != self.curLine:
+        while 'end' != self.curLine.strip() and '' != self.curLine:
             self.processBaseBlock(res)
         if '' == self.curLine:
             self.engine.logging('warning:未使用end对config进行包裹,可能存在潜在错误')
-        for _ in res:
-            _.jump = self.mapLabel[_.jump]
-        return res
+        return self.mapLabel, res
 
 
 # 定义执行引擎
 class Engine:
     def __init__(self, log):
         self.workFlow = list()
+        self.mapLabel = dict()
         if isinstance(log, IOBase):
             self.log = log
             self.logClose = False
@@ -255,7 +260,7 @@ class Engine:
             self.log = open(log, 'w', encoding='utf-8')
             self.logClose = True
         self.isRun = True
-        self.logging(f'log由{'engine' if self.logClose else '外部'}开启')
+        self.logging(f'log由{"engine" if self.logClose else "外部"}开启')
 
     def __del__(self):
         if self.logClose:
@@ -344,15 +349,19 @@ class Engine:
         else:
             f = config
             self.logging('config资源由外部打开')
-        self.workFlow = self.getBaseBlocks(f)
+        self.mapLabel, self.workFlow = self.getBaseBlocks(f)
         if close:
             f.close()
             self.logging('引擎关闭config文件句柄,释放资源')
         self.preImgRead()
-        blockIndex = '0'
+        blockLabel = self.workFlow[0].nextJump
         rng = np.random.default_rng()
-        while blockIndex != 'over' and self.isRun:
-            num = int(blockIndex)
+        while blockLabel != 'over' and self.isRun:
+            if blockLabel not in self.mapLabel:
+                self.logging(f'未注册的Label {blockLabel} ')
+                self.log.flush()
+                exit(-1)
+            num = self.mapLabel[blockLabel]
             picture = self.prtSc()
             curBlock = self.workFlow[num]
             target = curBlock.address
@@ -362,15 +371,15 @@ class Engine:
                 if len(imgs) != 0:
                     if curBlock.index == Action.all:
                         for (val, x, y) in imgs:
-                            blockIndex = self.worker(curBlock, x, y, rng, True)
+                            blockLabel = self.worker(curBlock, x, y, rng, True)
                     else:
                         for _, (val, x, y) in enumerate(imgs):
                             if _ == curBlock.index:
-                                blockIndex = self.worker(curBlock, x, y, rng, True)
+                                blockLabel = self.worker(curBlock, x, y, rng, True)
                                 break
                     get = True
                 else:  # 执行if not exists do
-                    blockIndex = self.worker(curBlock, 0, 0, rng, False)
+                    blockLabel = self.worker(curBlock, 0, 0, rng, False)
                 time.sleep(rng.uniform(RNG_FLOAT_LOW, RNG_FLOAT_HIGH))
         write = '正常关闭' if self.isRun else '紧急关闭'
         self.logging(write)
