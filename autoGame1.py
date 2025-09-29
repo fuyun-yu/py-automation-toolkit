@@ -162,7 +162,7 @@ class ConfigParser:
         elif doList[0] == 'notDo':
             if len(doList) != 1:
                 self.engine.logging(f'warning:config在第{self.configLineIndex}行出现非法参数,notDo后不应有参数')
-            arr = self.mapAction[doList[0]]
+            arr = [self.mapAction[doList[0]]]
         else:
             self.engine.logging(f'未知指令: {doList[0]}')
             exit(5)
@@ -198,7 +198,7 @@ class ConfigParser:
         elif doList[0] == 'notDo':
             if len(doList) != 1:
                 self.engine.logging(f'warning:config在第{self.configLineIndex}行出现非法参数,notDo后不应有参数')
-            arr = self.mapAction[doList[0]]
+            arr = [self.mapAction[doList[0]]]
         else:
             self.engine.logging(f'未知指令: {doList[0]}')
             exit(10)
