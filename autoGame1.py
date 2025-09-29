@@ -324,6 +324,8 @@ class Engine:
                 gui.click(button=button, clicks=clicks)
             elif task[0] == Action.keyHost:
                 gui.hotkey(*(task[1:]))
+            elif task[0] == Action.notDo:
+                pass
             else:
                 self.logging('未知指令')
                 exit(15)
@@ -331,6 +333,8 @@ class Engine:
         else:
             if task[0] == Action.jump:
                 return task[-1]
+            elif task[0] == Action.notDo:
+                pass
 
     def getBaseBlocks(self, config):
         parser = ConfigParser(config, self)
