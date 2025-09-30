@@ -36,13 +36,13 @@ index采用0-based系统
 label: [name]
 address: [url]
 do: [click,left,1]
-else: [jump otherLabel]
+else: [jump,otherLabel]
 index: [all]
 jump: [otherLabel]
 解析时依靠冒号前的字母(标识符)进行解析
 如果解析出错将直接报错终止程序
 在解析时会进行标签替换成对应的索引
-允许标识符后是空，则默认不执行任何步骤
+允许标识符后是notDo，则默认不执行任何步骤
 使用begin  和  end 单词对 定义config的范围，begin 和 end 应该独占一行
 对于不使用标识符开头的行将不会进行解析,所以可以直接写注释
 如果config不以end结尾，会在log中进行记录，但不会直接报错
